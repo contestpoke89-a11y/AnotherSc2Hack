@@ -1,11 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 using PredefinedTypes = Predefined.PredefinedData;
@@ -22,97 +17,74 @@ namespace LostUnits
         public PredefinedTypes.LSelection Selection { get; set; }
         public List<PredefinedTypes.Groups> Groups { get; set; }
 
-        private List<PlayerUnits> _lPlayers = new List<PlayerUnits>();
-        private List<PlayerUnits> _lPlayersWithLostUnits = new List<PlayerUnits>();
+        private List<PlayerUnits> _players = new List<PlayerUnits>();
+
         public MainWindow()
         {
             InitializeComponent();
         }
 
-        private List<PlayerUnits> ResetPlayerstruct()
+        private List<PlayerUnits> RebuildPlayerData()
         {
-            if (Players == null ||
-                Players.Count <= 0 ||
-                Units == null ||
-                Units.Count <= 0)
+            if (Players == null || Units == null || Players.Count == 0 || Units.Count == 0)
             {
-                return new List<PlayerUnits>();   
+                return new List<PlayerUnits>();
             }
 
-            List<PlayerUnits> lPlayers = new List<PlayerUnits>();
-
-            #region convert old Playerdata to new Playerdata
-
-            for (var i = 0; i < Players.Count; i++)
+            var players = Players.Select(player => new PlayerUnits
             {
-                var tmpPlayer = new PlayerUnits();
-                tmpPlayer.AccountId = Players[i].AccountId;
-                tmpPlayer.Apm = Players[i].Apm;
-                tmpPlayer.ApmAverage = Players[i].ApmAverage;
-                tmpPlayer.ArmySupply = Players[i].ArmySupply;
-                tmpPlayer.CameraAngle = Players[i].CameraAngle;
-                tmpPlayer.CameraDistance = Players[i].CameraDistance;
-                tmpPlayer.CameraPositionX = Players[i].CameraPositionX;
-                tmpPlayer.CameraPositionY = Players[i].CameraPositionY;
-                tmpPlayer.CameraRotation = Players[i].CameraRotation;
-                tmpPlayer.ClanTag = Players[i].ClanTag;
-                tmpPlayer.Color = Players[i].Color;
-                tmpPlayer.CurrentBuildings = Players[i].CurrentBuildings;
-                tmpPlayer.Difficulty = Players[i].Difficulty;
-                tmpPlayer.Epm = Players[i].Epm;
-                tmpPlayer.EpmAverage = Players[i].EpmAverage;
-                tmpPlayer.Gas = Players[i].Gas;
-                tmpPlayer.GasArmy = Players[i].GasArmy;
-                tmpPlayer.GasIncome = Players[i].GasIncome;
-                tmpPlayer.IsLocalplayer = Players[i].IsLocalplayer;
-                tmpPlayer.Localplayer = Players[i].Localplayer;
-                tmpPlayer.Minerals = Players[i].Minerals;
-                tmpPlayer.MineralsArmy = Players[i].MineralsArmy;
-                tmpPlayer.MineralsIncome = Players[i].MineralsIncome;
-                tmpPlayer.Name = Players[i].Name;
-                tmpPlayer.NameLength = Players[i].NameLength;
-                tmpPlayer.PlayerRace = Players[i].PlayerRace;
-                tmpPlayer.Status = Players[i].Status;
-                tmpPlayer.SupplyMax = Players[i].SupplyMax;
-                tmpPlayer.SupplyMaxRaw = Players[i].SupplyMaxRaw;
-                tmpPlayer.SupplyMin = Players[i].SupplyMin;
-                tmpPlayer.SupplyMinRaw = Players[i].SupplyMinRaw;
-                tmpPlayer.Team = Players[i].Team;
-                tmpPlayer.Type = Players[i].Type;
-                tmpPlayer.ValidSize = Players[i].ValidSize;
-                tmpPlayer.Worker = Players[i].Worker;
-                tmpPlayer.Units = new List<PredefinedTypes.Unit>();
+                AccountId = player.AccountId,
+                Apm = player.Apm,
+                ApmAverage = player.ApmAverage,
+                ArmySupply = player.ArmySupply,
+                CameraAngle = player.CameraAngle,
+                CameraDistance = player.CameraDistance,
+                CameraPositionX = player.CameraPositionX,
+                CameraPositionY = player.CameraPositionY,
+                CameraRotation = player.CameraRotation,
+                ClanTag = player.ClanTag,
+                Color = player.Color,
+                CurrentBuildings = player.CurrentBuildings,
+                Difficulty = player.Difficulty,
+                Epm = player.Epm,
+                EpmAverage = player.EpmAverage,
+                Gas = player.Gas,
+                GasArmy = player.GasArmy,
+                GasIncome = player.GasIncome,
+                IsLocalplayer = player.IsLocalplayer,
+                Localplayer = player.Localplayer,
+                Minerals = player.Minerals,
+                MineralsArmy = player.MineralsArmy,
+                MineralsIncome = player.MineralsIncome,
+                Name = player.Name,
+                NameLength = player.NameLength,
+                PlayerRace = player.PlayerRace,
+                Status = player.Status,
+                SupplyMax = player.SupplyMax,
+                SupplyMaxRaw = player.SupplyMaxRaw,
+                SupplyMin = player.SupplyMin,
+                SupplyMinRaw = player.SupplyMinRaw,
+                Team = player.Team,
+                Type = player.Type,
+                ValidSize = player.ValidSize,
+                Worker = player.Worker,
+                Units = new List<PredefinedTypes.Unit>()
+            }).ToList();
 
-                lPlayers.Add(tmpPlayer);
-            }
-
-            #endregion
-
-            #region Add Units to the Playerdata
-
-            
-                foreach (var tmpUnit in Units)
+            foreach (var unit in Units)
+            {
+                if (unit.Owner >= 0 && unit.Owner < players.Count)
                 {
-                    if (tmpUnit.Owner >= 0 &&
-                        tmpUnit.Owner < 16)
-                    {
-                        lPlayers[tmpUnit.Owner].Units.Add(tmpUnit);
-                    }
+                    players[unit.Owner].Units.Add(unit);
                 }
-            
+            }
 
-            #endregion
-
-            return lPlayers;
+            return players;
         }
-
-        
 
         private void tmrMainTimer_Tick(object sender, EventArgs e)
         {
-            _lPlayers = ResetPlayerstruct();
-
-            
+            _players = RebuildPlayerData();
         }
     }
 
@@ -123,8 +95,7 @@ namespace LostUnits
 
     public class AnotherSc2HackPlugin : IPlugins
     {
-
-        private MainWindow _frmExternal = null;
+        private MainWindow _window;
 
         public string GetPluginDescription()
         {
@@ -168,55 +139,69 @@ namespace LostUnits
 
         public void SetGameinfo(PredefinedTypes.Gameinformation gameinfo)
         {
-            _frmExternal.Gameinfo = gameinfo;
+            if (_window != null)
+            {
+                _window.Gameinfo = gameinfo;
+            }
         }
 
         public void SetGroups(List<PredefinedTypes.Groups> groups)
         {
-            _frmExternal.Groups = groups;
+            if (_window != null)
+            {
+                _window.Groups = groups;
+            }
         }
 
         public void SetMap(PredefinedTypes.Map map)
         {
-            _frmExternal.Map = map;
+            if (_window != null)
+            {
+                _window.Map = map;
+            }
         }
 
         public void SetPlayers(PredefinedTypes.PList players)
         {
-            _frmExternal.Players = players;
+            if (_window != null)
+            {
+                _window.Players = players;
+            }
         }
 
         public void SetSelection(PredefinedTypes.LSelection selection)
         {
-            _frmExternal.Selection = selection;
+            if (_window != null)
+            {
+                _window.Selection = selection;
+            }
         }
 
         public void SetUnits(List<PredefinedTypes.Unit> units)
         {
-            _frmExternal.Units = units;
+            if (_window != null)
+            {
+                _window.Units = units;
+            }
         }
 
         public void StartPlugin()
         {
-            if (_frmExternal == null)
-                _frmExternal = new MainWindow();
-
-
-            if (_frmExternal.Created)
-                _frmExternal.Close();
-
-            else
+            if (_window != null && !_window.IsDisposed)
             {
-
-                _frmExternal = new MainWindow();
-                _frmExternal.Show();
+                _window.Close();
             }
+
+            _window = new MainWindow();
+            _window.Show();
         }
 
         public void StopPlugin()
         {
-            if (_frmExternal != null)
-                _frmExternal.Close();
+            if (_window != null && !_window.IsDisposed)
+            {
+                _window.Close();
+            }
         }
     }
 }
